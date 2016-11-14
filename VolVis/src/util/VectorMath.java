@@ -26,6 +26,14 @@ public class VectorMath {
         return r;
     }
 
+    public static double[] multiply(double[] v, double c) {
+        double[] nv = new double[v.length];
+        for (int i = 0; i < v.length; i++) {
+            nv[i] = v[i] * c;
+        }
+        return nv;
+    }
+
     // compute distance between vectors v and w
     public static double distance(double[] v, double[] w) {
         double[] tmp = new double[3];

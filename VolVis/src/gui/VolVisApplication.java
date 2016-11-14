@@ -7,6 +7,7 @@ package gui;
 import com.jogamp.opengl.awt.GLJPanel;
 import java.awt.BorderLayout;
 import java.io.File;
+import java.util.prefs.Preferences;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileFilter;
 import volume.Volume;
@@ -19,6 +20,7 @@ import volvis.Visualization;
  */
 public class VolVisApplication extends javax.swing.JFrame {
 
+    Preferences prefs = Preferences.userRoot().node(getClass().getName());
     Visualization visualization;
     Volume volume;
     RaycastRenderer raycastRenderer;
@@ -133,7 +135,8 @@ public class VolVisApplication extends javax.swing.JFrame {
 
     private void loadButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loadButtonActionPerformed
         // TODO add your handling code here:
-        JFileChooser fc = new JFileChooser();
+        JFileChooser fc = new JFileChooser(prefs.get("LAST_USED_FOLDER",
+                new File(".").getAbsolutePath()));
         fc.setFileFilter(new FileFilter() {
 
             @Override
@@ -158,7 +161,7 @@ public class VolVisApplication extends javax.swing.JFrame {
         if (returnVal == JFileChooser.APPROVE_OPTION) {
                 File file = fc.getSelectedFile();
                 volume = new Volume(file);
-                
+                prefs.put("LAST_USED_FOLDER", fc.getSelectedFile().getParent());
                 String infoText = new String("Volume data info:\n");
                 infoText = infoText.concat(file.getName() + "\n");
                 infoText = infoText.concat("dimensions:\t\t" + volume.getDimX() + " x " + volume.getDimY() + " x " + volume.getDimZ() + "\n");

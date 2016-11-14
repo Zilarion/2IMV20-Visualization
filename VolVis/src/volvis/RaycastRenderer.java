@@ -29,10 +29,19 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     TransferFunction tFunc;
     TransferFunctionEditor tfEditor;
     TransferFunction2DEditor tfEditor2D;
-    
+
+    public enum RENDER_METHOD {
+        SLICES, MIP, COMPOSITING, TF2D
+    }
+    private RENDER_METHOD method;
+
     public RaycastRenderer() {
         panel = new RaycastRendererPanel(this);
         panel.setSpeedLabel("0");
+    }
+
+    public void setRenderMethod(RENDER_METHOD method) {
+        this.method = method;
     }
 
     public void setVolume(Volume vol) {
@@ -285,8 +294,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         gl.glGetDoublev(GL2.GL_MODELVIEW_MATRIX, viewMatrix, 0);
 
         long startTime = System.currentTimeMillis();
-        clear();
-        mip(viewMatrix);
+        render();
         
         long endTime = System.currentTimeMillis();
         double runningTime = (endTime - startTime);
@@ -330,6 +338,18 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     }
     private BufferedImage image;
     private double[] viewMatrix = new double[4 * 4];
+
+    private void render() {
+        clear();
+        switch(method) {
+            case SLICES:
+                slicer(viewMatrix);
+                break;
+            case MIP:
+                mip(viewMatrix);
+                break;
+        }
+    }
 
     @Override
     public void changed() {

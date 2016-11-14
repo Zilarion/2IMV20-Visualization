@@ -21,7 +21,6 @@ public class Volume {
     }
     
     public Volume(File file) {
-        
         try {
             VolumeIO reader = new VolumeIO(file);
             dimX = reader.getXDim();

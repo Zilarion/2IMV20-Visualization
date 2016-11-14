@@ -1,17 +1,17 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package volvis;
 
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL2;
+import com.jogamp.opengl.math.VectorUtil;
 import com.jogamp.opengl.util.texture.Texture;
 import com.jogamp.opengl.util.texture.awt.AWTTextureIO;
 import gui.RaycastRendererPanel;
 import gui.TransferFunction2DEditor;
 import gui.TransferFunctionEditor;
 import java.awt.image.BufferedImage;
+import java.util.Vector;
+
+import util.Interpolate;
 import util.TFChangeListener;
 import util.VectorMath;
 import volume.GradientVolume;
@@ -81,7 +81,6 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
      
 
     short getVoxel(double[] coord) {
-
         if (coord[0] < 0 || coord[0] > volume.getDimX() || coord[1] < 0 || coord[1] > volume.getDimY()
                 || coord[2] < 0 || coord[2] > volume.getDimZ()) {
             return 0;
@@ -94,16 +93,46 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         return volume.getVoxel(x, y, z);
     }
 
+    short interVoxel(double[] coord) {
+        if (coord[0] < 0 || coord[0] > volume.getDimX() || coord[1] < 0 || coord[1] > volume.getDimY()
+                || coord[2] < 0 || coord[2] > volume.getDimZ()) {
+            return 0;
+        }
 
-    void slicer(double[] viewMatrix) {
+        int xMin = (int) Math.floor(coord[0]);
+        int yMin = (int) Math.floor(coord[1]);
+        int zMin = (int) Math.floor(coord[2]);
+        int xMax = (int) Math.ceil(coord[0]);
+        int yMax = (int) Math.ceil(coord[1]);
+        int zMax = (int) Math.ceil(coord[2]);
 
+
+        double value = Interpolate.triLerp(
+                coord[0], coord[1], coord[2],
+                volume.getVoxel(xMin, yMin, zMin),
+                volume.getVoxel(xMin, yMax, zMin),
+                volume.getVoxel(xMin, yMin, zMax),
+                volume.getVoxel(xMin, yMax, zMax),
+                volume.getVoxel(xMax, yMin, zMin),
+                volume.getVoxel(xMax, yMax, zMin),
+                volume.getVoxel(xMax, yMin, xMax),
+                volume.getVoxel(xMax, yMax, xMax)
+        );
+
+        return (short) value;
+    }
+
+    void clear() {
         // clear image
         for (int j = 0; j < image.getHeight(); j++) {
             for (int i = 0; i < image.getWidth(); i++) {
                 image.setRGB(i, j, 0);
             }
         }
+    }
 
+
+    void slicer(double[] viewMatrix) {
         // vector uVec and vVec define a plane through the origin, 
         // perpendicular to the view vector viewVec
         double[] viewVec = new double[3];
@@ -146,15 +175,43 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                 
                 
                 // BufferedImage expects a pixel color packed as ARGB in an int
-                int c_alpha = voxelColor.a <= 1.0 ? (int) Math.floor(voxelColor.a * 255) : 255;
-                int c_red = voxelColor.r <= 1.0 ? (int) Math.floor(voxelColor.r * 255) : 255;
-                int c_green = voxelColor.g <= 1.0 ? (int) Math.floor(voxelColor.g * 255) : 255;
-                int c_blue = voxelColor.b <= 1.0 ? (int) Math.floor(voxelColor.b * 255) : 255;
-                int pixelColor = (c_alpha << 24) | (c_red << 16) | (c_green << 8) | c_blue;
-                image.setRGB(i, j, pixelColor);
+                image.setRGB(i, j, voxelColor.toARGB());
             }
         }
 
+    }
+
+    void mip(double[] viewMatrix) {
+        double[] viewVec = new double[3]; // Forward
+        double[] uVec = new double[3]; // Right
+        double[] vVec = new double[3]; // Up
+        VectorMath.setVector(viewVec, viewMatrix[2], viewMatrix[6], viewMatrix[10]);
+        VectorMath.setVector(uVec, viewMatrix[0], viewMatrix[4], viewMatrix[8]);
+        VectorMath.setVector(vVec, viewMatrix[1], viewMatrix[5], viewMatrix[9]);
+
+        int width = image.getWidth();
+        int height = image.getHeight();
+
+        TFColor voxelColor = new TFColor();
+        double[] p = new double[3];
+
+        for (int j = 0; j < height; j++) {
+            for (int i = 0; i < width; i++) {
+                double[] vU = VectorMath.multiply(uVec, i/width);
+                double[] vJ = VectorMath.multiply(vVec, j/height);
+
+                VectorMath.setVector(p, vU[0] + vJ[0], vU[1] + vJ[2], vU[2] + vJ[2]);
+
+
+                int val = 0;
+
+                voxelColor.r = 1.0f;
+                voxelColor.g = voxelColor.r;
+                voxelColor.b = voxelColor.r;
+                voxelColor.a = val > 0 ? 1.0 : 0.0;
+                image.setRGB(i,j, voxelColor.toARGB());
+            }
+        }
     }
 
 
@@ -219,8 +276,6 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 
     @Override
     public void visualize(GL2 gl) {
-
-
         if (volume == null) {
             return;
         }
@@ -230,7 +285,8 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         gl.glGetDoublev(GL2.GL_MODELVIEW_MATRIX, viewMatrix, 0);
 
         long startTime = System.currentTimeMillis();
-        slicer(viewMatrix);    
+        clear();
+        mip(viewMatrix);
         
         long endTime = System.currentTimeMillis();
         double runningTime = (endTime - startTime);

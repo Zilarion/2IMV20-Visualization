@@ -222,28 +222,40 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         short maxVal = 0;
         for (int j = 0; j < height; j++) {
             for (int i = 0; i < width; i++) {
-                short val = 0;
-                for (double k = 0; k < maxRange; k++) {
-                    p[0] = uVec[0] * (i - imageCenter) + vVec[0] * (j - imageCenter)
-                            + viewVec[0] * k + volumeCenter[0];
-                    p[1] = uVec[1] * (i - imageCenter) + vVec[1] * (j - imageCenter)
-                            + viewVec[1] * k + volumeCenter[1];
-                    p[2] = uVec[2] * (i - imageCenter) + vVec[2] * (j - imageCenter)
-                            + viewVec[2] * k + volumeCenter[2];
-                    short newVal = interVoxel(p);
+                if(i%4 == 0 && j%4 == 0 || !interactiveMode) {
+                    short val = 0;
+                    for (double k = 0; k < maxRange; k++) {
+                        p[0] = uVec[0] * (i - imageCenter) + vVec[0] * (j - imageCenter)
+                                + viewVec[0] * k + volumeCenter[0];
+                        p[1] = uVec[1] * (i - imageCenter) + vVec[1] * (j - imageCenter)
+                                + viewVec[1] * k + volumeCenter[1];
+                        p[2] = uVec[2] * (i - imageCenter) + vVec[2] * (j - imageCenter)
+                                + viewVec[2] * k + volumeCenter[2];
+                        short newVal = interVoxel(p);
 
-                    if (newVal > val) {
-                        val = newVal;
+                        if (newVal > val) {
+                            val = newVal;
+                        }
+                    }
+                    if (val > maxVal) {
+                        maxVal = val;
+                    }
+                    voxelColor.r = (double) val/max;
+                    voxelColor.g = voxelColor.r;
+                    voxelColor.b = voxelColor.r;
+                    voxelColor.a = val > 0 ? 1.0 : 0.0;
+
+                    if (interactiveMode) {
+                        for (int m = -2; m < 2; m++) {
+                            for (int n = -2; n < 2; n++) {
+                                if (i+n > 0 && i+n < width && j+m > 0 && j+m < height)
+                                    image.setRGB(i + n,j + m, voxelColor.toARGB());
+                            }
+                        }
+                    } else {
+                        image.setRGB(i, j, voxelColor.toARGB());
                     }
                 }
-                if (val > maxVal) {
-                    maxVal = val;
-                }
-                voxelColor.r = (double) val/max;
-                voxelColor.g = voxelColor.r;
-                voxelColor.b = voxelColor.r;
-                voxelColor.a = val > 0 ? 1.0 : 0.0;
-                image.setRGB(i,j, voxelColor.toARGB());
             }
         }
     }

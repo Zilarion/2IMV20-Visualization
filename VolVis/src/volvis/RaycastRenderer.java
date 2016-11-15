@@ -25,10 +25,13 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 
     private Volume volume = null;
     private GradientVolume gradients = null;
-    RaycastRendererPanel panel;
-    TransferFunction tFunc;
-    TransferFunctionEditor tfEditor;
-    TransferFunction2DEditor tfEditor2D;
+    private RaycastRendererPanel panel;
+    private TransferFunction tFunc;
+    private TransferFunctionEditor tfEditor;
+    private TransferFunction2DEditor tfEditor2D;
+
+    private BufferedImage image;
+    private double[] viewMatrix = new double[4 * 4];
 
     public enum RENDER_METHOD {
         SLICES, MIP, COMPOSITING, TF2D
@@ -36,6 +39,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     private RENDER_METHOD method;
 
     public RaycastRenderer() {
+        method = RENDER_METHOD.MIP;
         panel = new RaycastRendererPanel(this);
         panel.setSpeedLabel("0");
     }
@@ -74,6 +78,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         tfEditor2D.addTFChangeListener(this);
 
         System.out.println("Finished initialization of RaycastRenderer");
+        System.out.println(volume.getDimX() + ", " + volume.getDimY() + ", " + volume.getDimZ());
     }
 
     public RaycastRendererPanel getPanel() {
@@ -115,20 +120,26 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         int yMax = (int) Math.ceil(coord[1]);
         int zMax = (int) Math.ceil(coord[2]);
 
+        if (xMax > volume.getDimX() - 1 || yMax > volume.getDimY() - 1 || zMax > volume.getDimZ() - 1) {
+            xMin = xMax > volume.getDimX() - 1 ? volume.getDimX() - 1 : xMin;
+            yMin = yMax > volume.getDimY() - 1 ? volume.getDimY() - 1 : yMin;
+            zMin = zMax > volume.getDimZ() - 1 ? volume.getDimZ() - 1 : zMin;
+            return volume.getVoxel(xMin, yMin, zMin);
+        }
 
-        double value = Interpolate.triLerp(
-                coord[0], coord[1], coord[2],
+        short value = Interpolate.triLerp(
+                coord[0]/volume.getDimX(), coord[1]/volume.getDimY(), coord[2]/volume.getDimZ(),
                 volume.getVoxel(xMin, yMin, zMin),
                 volume.getVoxel(xMin, yMax, zMin),
                 volume.getVoxel(xMin, yMin, zMax),
                 volume.getVoxel(xMin, yMax, zMax),
                 volume.getVoxel(xMax, yMin, zMin),
                 volume.getVoxel(xMax, yMax, zMin),
-                volume.getVoxel(xMax, yMin, xMax),
-                volume.getVoxel(xMax, yMax, xMax)
+                volume.getVoxel(xMax, yMin, zMax),
+                volume.getVoxel(xMax, yMax, zMax)
         );
 
-        return (short) value;
+        return value;
     }
 
     void clear() {
@@ -139,7 +150,6 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
             }
         }
     }
-
 
     void slicer(double[] viewMatrix) {
         // vector uVec and vVec define a plane through the origin, 
@@ -200,21 +210,36 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 
         int width = image.getWidth();
         int height = image.getHeight();
+        int imageCenter = width/2;
+        int max = volume.getMaximum();
 
         TFColor voxelColor = new TFColor();
         double[] p = new double[3];
 
+        double maxRange = Math.abs(viewVec[0]) > (Math.abs(viewVec[1]) > Math.abs(viewVec[2]) ? volume.getDimY() : volume.getDimZ()) ? volume.getDimX() : (Math.abs(viewVec[1]) > Math.abs(viewVec[2]) ? volume.getDimY() : volume.getDimZ());
+        double[] volumeCenter = new double[3];
+        VectorMath.setVector(volumeCenter, volume.getDimX() / 2, volume.getDimY() / 2, volume.getDimZ() / 2);
+        short maxVal = 0;
         for (int j = 0; j < height; j++) {
             for (int i = 0; i < width; i++) {
-                double[] vU = VectorMath.multiply(uVec, i/width);
-                double[] vJ = VectorMath.multiply(vVec, j/height);
+                short val = 0;
+                for (double k = 0; k < maxRange; k++) {
+                    p[0] = uVec[0] * (i - imageCenter) + vVec[0] * (j - imageCenter)
+                            + viewVec[0] * k + volumeCenter[0];
+                    p[1] = uVec[1] * (i - imageCenter) + vVec[1] * (j - imageCenter)
+                            + viewVec[1] * k + volumeCenter[1];
+                    p[2] = uVec[2] * (i - imageCenter) + vVec[2] * (j - imageCenter)
+                            + viewVec[2] * k + volumeCenter[2];
+                    short newVal = interVoxel(p);
 
-                VectorMath.setVector(p, vU[0] + vJ[0], vU[1] + vJ[2], vU[2] + vJ[2]);
-
-
-                int val = 0;
-
-                voxelColor.r = 1.0f;
+                    if (newVal > val) {
+                        val = newVal;
+                    }
+                }
+                if (val > maxVal) {
+                    maxVal = val;
+                }
+                voxelColor.r = (double) val/max;
                 voxelColor.g = voxelColor.r;
                 voxelColor.b = voxelColor.r;
                 voxelColor.a = val > 0 ? 1.0 : 0.0;
@@ -336,8 +361,6 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         }
 
     }
-    private BufferedImage image;
-    private double[] viewMatrix = new double[4 * 4];
 
     private void render() {
         clear();

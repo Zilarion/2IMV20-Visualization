@@ -4,7 +4,7 @@ package util;
  * Created by ruudandriessen on 14/11/16.
  */
 public class Interpolate {
-    public static short lerp(double x, double q00, short q01) {
+    public static short lerp(double x, short q00, short q01) {
         return (short) ((1.0 - x) * q00 + x  * q01);
     }
 

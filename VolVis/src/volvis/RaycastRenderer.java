@@ -30,6 +30,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     private TransferFunctionEditor tfEditor;
     private TransferFunction2DEditor tfEditor2D;
 
+    private int max;
     private BufferedImage image;
     private double[] viewMatrix = new double[4 * 4];
 
@@ -79,6 +80,8 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 
         System.out.println("Finished initialization of RaycastRenderer");
         System.out.println(volume.getDimX() + ", " + volume.getDimY() + ", " + volume.getDimZ());
+
+        max = volume.getMaximum();
     }
 
     public RaycastRendererPanel getPanel() {
@@ -91,20 +94,6 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     
     public TransferFunctionEditor getTFPanel() {
         return tfEditor;
-    }
-     
-
-    short getVoxel(double[] coord) {
-        if (coord[0] < 0 || coord[0] > volume.getDimX() || coord[1] < 0 || coord[1] > volume.getDimY()
-                || coord[2] < 0 || coord[2] > volume.getDimZ()) {
-            return 0;
-        }
-
-        int x = (int) Math.floor(coord[0]);
-        int y = (int) Math.floor(coord[1]);
-        int z = (int) Math.floor(coord[2]);
-
-        return volume.getVoxel(x, y, z);
     }
 
     short interVoxel(double[] coord) {
@@ -169,10 +158,8 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         VectorMath.setVector(volumeCenter, volume.getDimX() / 2, volume.getDimY() / 2, volume.getDimZ() / 2);
 
         // sample on a plane through the origin of the volume data
-        double max = volume.getMaximum();
         TFColor voxelColor = new TFColor();
 
-        
         for (int j = 0; j < image.getHeight(); j++) {
             for (int i = 0; i < image.getWidth(); i++) {
                 pixelCoord[0] = uVec[0] * (i - imageCenter) + vVec[0] * (j - imageCenter)
@@ -182,10 +169,10 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                 pixelCoord[2] = uVec[2] * (i - imageCenter) + vVec[2] * (j - imageCenter)
                         + volumeCenter[2];
 
-                int val = getVoxel(pixelCoord);
+                int val = interVoxel(pixelCoord);
                 
                 // Map the intensity to a grey value by linear scaling
-                voxelColor.r = val/max;
+                voxelColor.r = (double) val/max;
                 voxelColor.g = voxelColor.r;
                 voxelColor.b = voxelColor.r;
                 voxelColor.a = val > 0 ? 1.0 : 0.0;  // this makes intensity 0 completely transparent and the rest opaque
@@ -211,15 +198,19 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         int width = image.getWidth();
         int height = image.getHeight();
         int imageCenter = width/2;
-        int max = volume.getMaximum();
 
+        //  Voxel color / location of point to interpolate
         TFColor voxelColor = new TFColor();
         double[] p = new double[3];
 
-        double maxRange = Math.abs(viewVec[0]) > (Math.abs(viewVec[1]) > Math.abs(viewVec[2]) ? volume.getDimY() : volume.getDimZ()) ? volume.getDimX() : (Math.abs(viewVec[1]) > Math.abs(viewVec[2]) ? volume.getDimY() : volume.getDimZ());
+        // Get the highest dimension of the view vector, and take this volume as max range
+        double maxRange =
+                Math.abs(viewVec[0]) > (Math.abs(viewVec[1]) > Math.abs(viewVec[2]) ? volume.getDimY() : volume.getDimZ())
+                    ? volume.getDimX() : (Math.abs(viewVec[1]) > Math.abs(viewVec[2]) ? volume.getDimY() : volume.getDimZ());
+
         double[] volumeCenter = new double[3];
         VectorMath.setVector(volumeCenter, volume.getDimX() / 2, volume.getDimY() / 2, volume.getDimZ() / 2);
-        short maxVal = 0;
+
         for (int j = 0; j < height; j++) {
             for (int i = 0; i < width; i++) {
                 if(i%4 == 0 && j%4 == 0 || !interactiveMode) {
@@ -236,9 +227,6 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                         if (newVal > val) {
                             val = newVal;
                         }
-                    }
-                    if (val > maxVal) {
-                        maxVal = val;
                     }
                     voxelColor.r = (double) val/max;
                     voxelColor.g = voxelColor.r;
@@ -363,6 +351,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         gl.glEnd();
         texture.disable(gl);
         texture.destroy(gl);
+
         gl.glPopMatrix();
 
         gl.glPopAttrib();

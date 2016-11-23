@@ -2,14 +2,12 @@ package volvis;
 
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL2;
-import com.jogamp.opengl.math.VectorUtil;
 import com.jogamp.opengl.util.texture.Texture;
 import com.jogamp.opengl.util.texture.awt.AWTTextureIO;
 import gui.RaycastRendererPanel;
 import gui.TransferFunction2DEditor;
 import gui.TransferFunctionEditor;
 import java.awt.image.BufferedImage;
-import java.util.Vector;
 
 import util.Interpolate;
 import util.TFChangeListener;
@@ -203,10 +201,8 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         TFColor voxelColor = new TFColor();
         double[] p = new double[3];
 
-        // Get the highest dimension of the view vector, and take this volume as max range
-        double maxRange =
-                Math.abs(viewVec[0]) > (Math.abs(viewVec[1]) > Math.abs(viewVec[2]) ? volume.getDimY() : volume.getDimZ())
-                    ? volume.getDimX() : (Math.abs(viewVec[1]) > Math.abs(viewVec[2]) ? volume.getDimY() : volume.getDimZ());
+        // Get the highest dimension of the volume
+        double maxRange = volume.getDiagonal();
 
         double[] volumeCenter = new double[3];
         VectorMath.setVector(volumeCenter, volume.getDimX() / 2, volume.getDimY() / 2, volume.getDimZ() / 2);
@@ -233,18 +229,71 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                     voxelColor.b = voxelColor.r;
                     voxelColor.a = val > 0 ? 1.0 : 0.0;
 
-                    if (interactiveMode) {
-                        for (int m = -2; m < 2; m++) {
-                            for (int n = -2; n < 2; n++) {
-                                if (i+n > 0 && i+n < width && j+m > 0 && j+m < height)
-                                    image.setRGB(i + n,j + m, voxelColor.toARGB());
-                            }
-                        }
-                    } else {
-                        image.setRGB(i, j, voxelColor.toARGB());
-                    }
+                    setColor(i, j, voxelColor);
                 }
             }
+        }
+    }
+
+    void composite(double[] viewMatrix) {
+        double[] viewVec = new double[3]; // Forward
+        double[] uVec = new double[3]; // Right
+        double[] vVec = new double[3]; // Up
+        VectorMath.setVector(viewVec, viewMatrix[2], viewMatrix[6], viewMatrix[10]);
+        VectorMath.setVector(uVec, viewMatrix[0], viewMatrix[4], viewMatrix[8]);
+        VectorMath.setVector(vVec, viewMatrix[1], viewMatrix[5], viewMatrix[9]);
+
+        int width = image.getWidth();
+        int height = image.getHeight();
+        int imageCenter = width/2;
+
+        //  Voxel color / location of point to interpolate
+        TFColor voxelColor;
+        double[] p = new double[3];
+
+        // Get the highest dimension of the volume
+        double maxRange = volume.getDiagonal();
+
+        double[] volumeCenter = new double[3];
+        VectorMath.setVector(volumeCenter, volume.getDimX() / 2, volume.getDimY() / 2, volume.getDimZ() / 2);
+        TFColor compColor = new TFColor(0, 0, 0, 0);
+
+        for (int j = 0; j < height; j++) {
+            for (int i = 0; i < width; i++) {
+                if(i%4 == 0 && j%4 == 0 || !interactiveMode) {
+                    for (double k = maxRange; k > 0; k--) {
+                        p[0] = uVec[0] * (i - imageCenter) + vVec[0] * (j - imageCenter)
+                                + viewVec[0] * k + volumeCenter[0];
+                        p[1] = uVec[1] * (i - imageCenter) + vVec[1] * (j - imageCenter)
+                                + viewVec[1] * k + volumeCenter[1];
+                        p[2] = uVec[2] * (i - imageCenter) + vVec[2] * (j - imageCenter)
+                                + viewVec[2] * k + volumeCenter[2];
+                        short val = interVoxel(p);
+                        voxelColor = tFunc.getColor(val);
+                        compColor.a = voxelColor.a * voxelColor.a + (1 - voxelColor.a) * compColor.a;
+                        compColor.r = voxelColor.r * voxelColor.a + (1 - voxelColor.a) * compColor.r;
+                        compColor.g = voxelColor.g * voxelColor.a + (1 - voxelColor.a) * compColor.g;
+                        compColor.b = voxelColor.b * voxelColor.a + (1 - voxelColor.a) * compColor.b;
+                    }
+
+                    setColor(i, j, compColor);
+                }
+            }
+        }
+    }
+
+    public void setColor(int x, int y, TFColor c) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        if (interactiveMode) {
+            for (int m = -2; m < 2; m++) {
+                for (int n = -2; n < 2; n++) {
+                    if (x+n > 0 && x+n < width && y+m > 0 && y+m < height)
+                        image.setRGB(x + n,y + m, c.toARGB());
+                }
+            }
+        } else {
+            image.setRGB(x, y, c.toARGB());
         }
     }
 
@@ -371,6 +420,9 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                 break;
             case MIP:
                 mip(viewMatrix);
+                break;
+            case COMPOSITING:
+                composite(viewMatrix);
                 break;
         }
     }

@@ -34,7 +34,8 @@ public class Volume {
         
     }
     
-    
+
+
     public short getVoxel(int x, int y, int z) {
         return data[x + dimX*(y + dimY * z)];
     }
@@ -61,6 +62,10 @@ public class Volume {
     
     public int getDimZ() {
         return dimZ;
+    }
+
+    public double getDiagonal() {
+        return Math.sqrt(dimX * dimX + dimY * dimY + dimZ * dimZ);
     }
 
     public short getMinimum() {

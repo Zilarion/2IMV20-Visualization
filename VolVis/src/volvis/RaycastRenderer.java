@@ -256,12 +256,13 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 
         double[] volumeCenter = new double[3];
         VectorMath.setVector(volumeCenter, volume.getDimX() / 2, volume.getDimY() / 2, volume.getDimZ() / 2);
-        TFColor compColor = new TFColor(0, 0, 0, 0);
+        TFColor compColor;
 
         for (int j = 0; j < height; j++) {
             for (int i = 0; i < width; i++) {
+                compColor = new TFColor(0,0,0,1);
                 if(i%4 == 0 && j%4 == 0 || !interactiveMode) {
-                    for (double k = maxRange/2; k > -maxRange/2; k--) {
+                    for (double k = -maxRange/2; k < maxRange/2; k++) {
                         p[0] = uVec[0] * (i - imageCenter) + vVec[0] * (j - imageCenter)
                                 + viewVec[0] * k + volumeCenter[0];
                         p[1] = uVec[1] * (i - imageCenter) + vVec[1] * (j - imageCenter)
@@ -270,7 +271,6 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                                 + viewVec[2] * k + volumeCenter[2];
                         short val = interVoxel(p);
                         voxelColor = tFunc.getColor(val);
-                        compColor.a = voxelColor.a * voxelColor.a + (1.0 - voxelColor.a) * compColor.a;
                         compColor.r = voxelColor.r * voxelColor.a + (1.0 - voxelColor.a) * compColor.r;
                         compColor.g = voxelColor.g * voxelColor.a + (1.0 - voxelColor.a) * compColor.g;
                         compColor.b = voxelColor.b * voxelColor.a + (1.0 - voxelColor.a) * compColor.b;

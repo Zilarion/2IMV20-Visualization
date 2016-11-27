@@ -12,20 +12,18 @@ import java.awt.image.BufferedImage;
  */
 public class GradientWorker extends RaycastWorker {
     GradientVolume gradients;
-    TransferFunction tFunc;
     TransferFunction2DEditor tf2d;
 
-    public GradientWorker(int startH, int endH, Volume volume, GradientVolume gradients, TransferFunction tFunc, TransferFunction2DEditor tf2d, BufferedImage target, double[] viewMatrix, boolean interactive) {
+    public GradientWorker(int startH, int endH, Volume volume, GradientVolume gradients, TransferFunction2DEditor tf2d, BufferedImage target, double[] viewMatrix, boolean interactive) {
         super(startH, endH, volume, gradients, target, viewMatrix, interactive);
         this.gradients = gradients;
-        this.tFunc = tFunc;
         this.tf2d = tf2d;
     }
 
 
     @Override
     public void run() {
-        TFColor compColor, voxelColor;
+        TFColor compColor, voxelColor = new TFColor();
         double[] p = new double[3];
         double intensity =  tf2d.triangleWidget.baseIntensity;
         double radius =  tf2d.triangleWidget.radius;
@@ -51,17 +49,19 @@ public class GradientWorker extends RaycastWorker {
                         }
 
                         short val = interVoxel(p);
-                        voxelColor = tfColor;
+                        voxelColor = new TFColor(tfColor.r, tfColor.g, tfColor.b, tfColor.a);
 
                         VoxelGradient gradient = gradients.getGradient((int) Math.floor(p[0]), (int) Math.floor(p[1]), (int) Math.floor(p[2]));
 
+                        // Calculate isovalue contour surfaces according to Levoy
                         if (gradient.mag == 0 && val == intensity) {
-                            voxelColor.a = 1.0;
+                            voxelColor.a = tfColor.a * 1.0;
                         } else if (gradient.mag > 0.0 && ((val - radius * gradient.mag) <= intensity) && ((val + radius * gradient.mag) >= intensity)) {
-                            voxelColor.a = (1.0 - (1 / radius) * (Math.abs((intensity - val) / gradient.mag)));
+                            voxelColor.a = tfColor.a *  (1.0 - (1.0 / radius) * (Math.abs((intensity - val) / gradient.mag)));
                         } else {
                             voxelColor.a = 0.0;
                         }
+                        voxelColor = phong(voxelColor, p);
 
                         compColor.r = voxelColor.r * voxelColor.a + (1.0 - voxelColor.a) * compColor.r;
                         compColor.g = voxelColor.g * voxelColor.a + (1.0 - voxelColor.a) * compColor.g;

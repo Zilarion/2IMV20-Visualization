@@ -100,7 +100,7 @@ public abstract class RaycastWorker extends Thread {
     public TFColor phong(TFColor in, double[] p) {
         if (p[0] < 0 || p[1] < 0 || p[2] < 0 || p[0] > volume.getDimX() || p[1] > volume.getDimY() || p[2] > volume.getDimZ() ) { return in; }
 
-        double k_ambient = 0.3, k_diff = 0.7, k_spec = 0.8, alpha = 5;
+        double k_ambient = 0.2, k_diff = 0.7, k_spec = 0.6, alpha = 10;
         TFColor out = new TFColor(in.r, in.g, in.b, in.a);
 
         double[] L = viewVec; // L = R, light comes from our view vec (reversed?)
@@ -117,8 +117,8 @@ public abstract class RaycastWorker extends Thread {
             N[2] = gradient.z / gradient.mag;
 
             // Computing required dot products
-            double ln = Math.abs(VectorMath.dotproduct(L, N));
-            double nr = Math.abs(VectorMath.dotproduct(N, R));
+            double ln = VectorMath.dotproduct(L, N);
+            double nr = VectorMath.dotproduct(N, R);
 
             if (ln > 0 && nr > 0) {
                 out.r = in.r * (k_ambient + (k_diff * ln) + (k_spec * Math.pow(nr, alpha)));

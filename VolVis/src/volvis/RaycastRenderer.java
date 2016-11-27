@@ -137,7 +137,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                     worker = new CompositeWorker(startH, endH, volume, gradients, image, tFunc, viewMatrix, interactiveMode);
                     break;
                 case TF2D:
-                    worker = new GradientWorker(startH, endH, volume, gradients, tFunc, tfEditor2D, image, viewMatrix, interactiveMode);
+                    worker = new GradientWorker(startH, endH, volume, gradients, tfEditor2D, image, viewMatrix, interactiveMode);
                     break;
             }
             if (worker != null)

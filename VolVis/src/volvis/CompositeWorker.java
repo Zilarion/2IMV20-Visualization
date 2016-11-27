@@ -36,7 +36,9 @@ public class CompositeWorker extends RaycastWorker {
                         p[2] = uVec[2] * (i - imageCenter) + vVec[2] * (j - imageCenter)
                                 + viewVec[2] * k + volumeCenter[2];
                         short val = interVoxel(p);
+
                         voxelColor = tFunc.getColor(val);
+                        voxelColor = phong(voxelColor, p);
 
                         compColor.r = voxelColor.r * voxelColor.a + (1.0 - voxelColor.a) * compColor.r;
                         compColor.g = voxelColor.g * voxelColor.a + (1.0 - voxelColor.a) * compColor.g;

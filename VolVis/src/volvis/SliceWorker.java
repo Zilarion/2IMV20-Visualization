@@ -1,5 +1,6 @@
 package volvis;
 
+import volume.GradientVolume;
 import volume.Volume;
 
 import java.awt.image.BufferedImage;
@@ -10,8 +11,8 @@ import java.awt.image.BufferedImage;
 public class SliceWorker extends RaycastWorker {
     int max;
 
-    public SliceWorker(int startH, int endH, int volumeMax, Volume volume, BufferedImage target, double[] viewMatrix, boolean interactive) {
-        super(startH, endH, volume, target, viewMatrix, interactive);
+    public SliceWorker(int startH, int endH, int volumeMax, Volume volume, GradientVolume gradients, BufferedImage target, double[] viewMatrix, boolean interactive) {
+        super(startH, endH, volume, gradients, target, viewMatrix, interactive);
         max = volumeMax;
     }
 

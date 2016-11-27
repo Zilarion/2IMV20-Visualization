@@ -1,5 +1,6 @@
 package volvis;
 
+import volume.GradientVolume;
 import volume.Volume;
 
 import java.awt.image.BufferedImage;
@@ -10,8 +11,8 @@ import java.awt.image.BufferedImage;
 public class CompositeWorker extends RaycastWorker {
     TransferFunction tFunc;
 
-    public CompositeWorker(int startH, int endH, Volume volume, BufferedImage target, TransferFunction tFunc, double[] viewMatrix, boolean interactive) {
-        super(startH, endH, volume, target, viewMatrix, interactive);
+    public CompositeWorker(int startH, int endH, Volume volume, GradientVolume gradients, BufferedImage target, TransferFunction tFunc, double[] viewMatrix, boolean interactive) {
+        super(startH, endH, volume, gradients, target, viewMatrix, interactive);
         this.tFunc = tFunc;
     }
 
@@ -36,6 +37,7 @@ public class CompositeWorker extends RaycastWorker {
                                 + viewVec[2] * k + volumeCenter[2];
                         short val = interVoxel(p);
                         voxelColor = tFunc.getColor(val);
+
                         compColor.r = voxelColor.r * voxelColor.a + (1.0 - voxelColor.a) * compColor.r;
                         compColor.g = voxelColor.g * voxelColor.a + (1.0 - voxelColor.a) * compColor.g;
                         compColor.b = voxelColor.b * voxelColor.a + (1.0 - voxelColor.a) * compColor.b;

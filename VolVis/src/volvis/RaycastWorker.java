@@ -2,7 +2,9 @@ package volvis;
 
 import util.Interpolate;
 import util.VectorMath;
+import volume.GradientVolume;
 import volume.Volume;
+import volume.VoxelGradient;
 
 import java.awt.image.BufferedImage;
 
@@ -20,11 +22,13 @@ public abstract class RaycastWorker extends Thread {
             volumeCenter = new double[3];
     BufferedImage image;
     Volume volume;
+    GradientVolume gradients;
 
-    public RaycastWorker(int startH, int endH, Volume volume, BufferedImage target, double[] viewMatrix, boolean interactive) {
+    public RaycastWorker(int startH, int endH, Volume volume, GradientVolume gradients, BufferedImage target, double[] viewMatrix, boolean interactive) {
         image = target;
         this.interactive= interactive;
         this.volume = volume;
+        this.gradients = gradients;
 
         imageCenter = image.getWidth()/2;
 
@@ -92,4 +96,35 @@ public abstract class RaycastWorker extends Thread {
         return value;
     }
 
+
+    public TFColor phong(TFColor in, double[] p) {
+        if (p[0] < 0 || p[1] < 0 || p[2] < 0 || p[0] > volume.getDimX() || p[1] > volume.getDimY() || p[2] > volume.getDimZ() ) { return in; }
+        double k_ambient = 0.4, k_diff = 0.7, k_spec = 0.2, alpha = 10;
+        TFColor out = new TFColor(in.r, in.g, in.b, in.a);
+
+        double[] L = new double[]{-viewVec[0], -viewVec[1], -viewVec[2]}; // L = R, light comes from our view vec reversed
+        double[] R = new double[]{-viewVec[0], -viewVec[1], -viewVec[2]};
+        double[] N = new double[3];
+
+        VoxelGradient gradient = gradients.getGradient((int) Math.floor(p[0]), (int) Math.floor(p[1]), (int) Math.floor(p[2]));
+
+        if (gradient.mag > 0.0 && in.a > 0.0) {
+            // Filling N-Vector:
+            N[0] = gradient.x / gradient.mag;
+            N[1] = gradient.y / gradient.mag;
+            N[2] = gradient.z / gradient.mag;
+
+            // Computing required dot products
+            double l_dot_n = VectorMath.dotproduct(L, N);
+            double n_dot_r = VectorMath.dotproduct(N, R);
+
+            if (l_dot_n > 0 && n_dot_r > 0) {
+                out.r = k_ambient * in.r + (in.r * k_diff * l_dot_n) + in.r * k_spec * Math.pow(n_dot_r, alpha);
+                out.g = k_ambient * in.g  + (in.g * k_diff * l_dot_n) + in.g * k_spec * Math.pow(n_dot_r, alpha);
+                out.b = k_ambient * in.b  + (in.b * k_diff * l_dot_n) + in.b * k_spec * Math.pow(n_dot_r, alpha);
+            }
+        }
+
+        return out;
+    }
 }

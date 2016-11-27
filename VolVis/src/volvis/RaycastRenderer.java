@@ -13,7 +13,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import util.TFChangeListener;
-import util.VectorMath;
 import volume.GradientVolume;
 import volume.Volume;
 
@@ -76,7 +75,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         tFunc = new TransferFunction(volume.getMinimum(), volume.getMaximum());
         
         // uncomment this to initialize the TF with good starting values for the orange dataset 
-        //tFunc.setTestFunc();
+        tFunc.setTestFunc();
         
         
         tFunc.addTFChangeListener(this);
@@ -129,13 +128,16 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
             Runnable worker = null;
             switch(m) {
                 case SLICES:
-                    worker = new SliceWorker(startH, endH, max, volume, image, viewMatrix, interactiveMode);
+                    worker = new SliceWorker(startH, endH, max, volume, gradients, image, viewMatrix, interactiveMode);
                     break;
                 case MIP:
-                    worker = new MIPWorker(startH, endH, max, volume, image, viewMatrix, interactiveMode);
+                    worker = new MIPWorker(startH, endH, max, volume, gradients, image, viewMatrix, interactiveMode);
                     break;
                 case COMPOSITING:
-                    worker = new CompositeWorker(startH, endH, volume, image, tFunc, viewMatrix, interactiveMode);
+                    worker = new CompositeWorker(startH, endH, volume, gradients, image, tFunc, viewMatrix, interactiveMode);
+                    break;
+                case TF2D:
+                    worker = new GradientWorker(startH, endH, volume, gradients, tFunc, tfEditor2D, image, viewMatrix, interactiveMode);
                     break;
             }
             if (worker != null)
@@ -143,7 +145,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         }
         executor.shutdown();
         try {
-            executor.awaitTermination(2, TimeUnit.SECONDS);
+            executor.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             System.out.println("Threads were interrupted..");
         }

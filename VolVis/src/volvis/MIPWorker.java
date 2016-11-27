@@ -1,8 +1,11 @@
 package volvis;
 
+import util.VectorMath;
+import volume.GradientVolume;
 import volume.Volume;
 
 import java.awt.image.BufferedImage;
+import java.util.Vector;
 
 /**
  * Created by ruudandriessen on 27/11/16.
@@ -10,8 +13,8 @@ import java.awt.image.BufferedImage;
 public class MIPWorker extends RaycastWorker {
     int max;
 
-    public MIPWorker(int startH, int endH, int volumeMax, Volume volume, BufferedImage target, double[] viewMatrix, boolean interactive) {
-        super(startH, endH, volume, target, viewMatrix, interactive);
+    public MIPWorker(int startH, int endH, int volumeMax, Volume volume, GradientVolume gradients, BufferedImage target, double[] viewMatrix, boolean interactive) {
+        super(startH, endH, volume, gradients, target, viewMatrix, interactive);
         max = volumeMax;
     }
 

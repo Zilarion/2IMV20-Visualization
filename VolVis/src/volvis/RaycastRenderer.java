@@ -8,8 +8,10 @@ import gui.RaycastRendererPanel;
 import gui.TransferFunction2DEditor;
 import gui.TransferFunctionEditor;
 import java.awt.image.BufferedImage;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-import util.Interpolate;
 import util.TFChangeListener;
 import util.VectorMath;
 import volume.GradientVolume;
@@ -20,13 +22,14 @@ import volume.Volume;
  * @author michel
  */
 public class RaycastRenderer extends Renderer implements TFChangeListener {
-
     private Volume volume = null;
     private GradientVolume gradients = null;
     private RaycastRendererPanel panel;
     private TransferFunction tFunc;
     private TransferFunctionEditor tfEditor;
     private TransferFunction2DEditor tfEditor2D;
+    private ExecutorService executor;
+    private int threadCount = 16;
 
     private int max;
     private BufferedImage image;
@@ -41,6 +44,12 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         method = RENDER_METHOD.MIP;
         panel = new RaycastRendererPanel(this);
         panel.setSpeedLabel("0");
+    }
+
+    @Override
+    public void setInteractiveMode(boolean flag) {
+        executor.shutdownNow();
+        interactiveMode = flag;
     }
 
     public void setRenderMethod(RENDER_METHOD method) {
@@ -94,41 +103,6 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         return tfEditor;
     }
 
-    short interVoxel(double[] coord) {
-        if (coord[0] < 0 || coord[0] > volume.getDimX() || coord[1] < 0 || coord[1] > volume.getDimY()
-                || coord[2] < 0 || coord[2] > volume.getDimZ()) {
-            return 0;
-        }
-
-        int xMin = (int) Math.floor(coord[0]);
-        int yMin = (int) Math.floor(coord[1]);
-        int zMin = (int) Math.floor(coord[2]);
-        int xMax = (int) Math.ceil(coord[0]);
-        int yMax = (int) Math.ceil(coord[1]);
-        int zMax = (int) Math.ceil(coord[2]);
-
-        if (xMax > volume.getDimX() - 1 || yMax > volume.getDimY() - 1 || zMax > volume.getDimZ() - 1) {
-            xMin = xMax > volume.getDimX() - 1 ? volume.getDimX() - 1 : xMin;
-            yMin = yMax > volume.getDimY() - 1 ? volume.getDimY() - 1 : yMin;
-            zMin = zMax > volume.getDimZ() - 1 ? volume.getDimZ() - 1 : zMin;
-            return volume.getVoxel(xMin, yMin, zMin);
-        }
-
-        short value = Interpolate.triLerp(
-                coord[0]/volume.getDimX(), coord[1]/volume.getDimY(), coord[2]/volume.getDimZ(),
-                volume.getVoxel(xMin, yMin, zMin),
-                volume.getVoxel(xMin, yMax, zMin),
-                volume.getVoxel(xMin, yMin, zMax),
-                volume.getVoxel(xMin, yMax, zMax),
-                volume.getVoxel(xMax, yMin, zMin),
-                volume.getVoxel(xMax, yMax, zMin),
-                volume.getVoxel(xMax, yMin, zMax),
-                volume.getVoxel(xMax, yMax, zMax)
-        );
-
-        return value;
-    }
-
     void clear() {
         // clear image
         for (int j = 0; j < image.getHeight(); j++) {
@@ -138,165 +112,42 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         }
     }
 
-    void slicer(double[] viewMatrix) {
-        // vector uVec and vVec define a plane through the origin, 
-        // perpendicular to the view vector viewVec
-        double[] viewVec = new double[3];
-        double[] uVec = new double[3];
-        double[] vVec = new double[3];
-        VectorMath.setVector(viewVec, viewMatrix[2], viewMatrix[6], viewMatrix[10]);
-        VectorMath.setVector(uVec, viewMatrix[0], viewMatrix[4], viewMatrix[8]);
-        VectorMath.setVector(vVec, viewMatrix[1], viewMatrix[5], viewMatrix[9]);
-
-        // image is square
-        int imageCenter = image.getWidth() / 2;
-
-        double[] pixelCoord = new double[3];
-        double[] volumeCenter = new double[3];
-        VectorMath.setVector(volumeCenter, volume.getDimX() / 2, volume.getDimY() / 2, volume.getDimZ() / 2);
-
-        // sample on a plane through the origin of the volume data
-        TFColor voxelColor = new TFColor();
-
-        for (int j = 0; j < image.getHeight(); j++) {
-            for (int i = 0; i < image.getWidth(); i++) {
-                pixelCoord[0] = uVec[0] * (i - imageCenter) + vVec[0] * (j - imageCenter)
-                        + volumeCenter[0];
-                pixelCoord[1] = uVec[1] * (i - imageCenter) + vVec[1] * (j - imageCenter)
-                        + volumeCenter[1];
-                pixelCoord[2] = uVec[2] * (i - imageCenter) + vVec[2] * (j - imageCenter)
-                        + volumeCenter[2];
-
-                int val = interVoxel(pixelCoord);
-                
-                // Map the intensity to a grey value by linear scaling
-                voxelColor.r = (double) val/max;
-                voxelColor.g = voxelColor.r;
-                voxelColor.b = voxelColor.r;
-                voxelColor.a = val > 0 ? 1.0 : 0.0;  // this makes intensity 0 completely transparent and the rest opaque
-                // Alternatively, apply the transfer function to obtain a color
-                // voxelColor = tFunc.getColor(val);
-                
-                
-                // BufferedImage expects a pixel color packed as ARGB in an int
-                image.setRGB(i, j, voxelColor.toARGB());
-            }
-        }
-
-    }
-
-    void mip(double[] viewMatrix) {
-        double[] viewVec = new double[3]; // Forward
-        double[] uVec = new double[3]; // Right
-        double[] vVec = new double[3]; // Up
-        VectorMath.setVector(viewVec, viewMatrix[2], viewMatrix[6], viewMatrix[10]);
-        VectorMath.setVector(uVec, viewMatrix[0], viewMatrix[4], viewMatrix[8]);
-        VectorMath.setVector(vVec, viewMatrix[1], viewMatrix[5], viewMatrix[9]);
-
-        int width = image.getWidth();
+    void compute(double[] viewMatrix, RENDER_METHOD m) {
         int height = image.getHeight();
-        int imageCenter = width/2;
+        int hDelta = height/16;
 
-        //  Voxel color / location of point to interpolate
-        TFColor voxelColor = new TFColor();
-        double[] p = new double[3];
+        int startH = 0, endH = hDelta;
+        executor = Executors.newFixedThreadPool(threadCount);
+        for (int i = 0; i < threadCount; i++) {
+            startH += hDelta;
+            endH += hDelta;
 
-        // Get the highest dimension of the volume
-        double maxRange = volume.getDiagonal();
-
-        double[] volumeCenter = new double[3];
-        VectorMath.setVector(volumeCenter, volume.getDimX() / 2, volume.getDimY() / 2, volume.getDimZ() / 2);
-
-        for (int j = 0; j < height; j++) {
-            for (int i = 0; i < width; i++) {
-                if(i%4 == 0 && j%4 == 0 || !interactiveMode) {
-                    short val = 0;
-                    for (double k = -maxRange/2; k < maxRange/2; k++) {
-                        p[0] = uVec[0] * (i - imageCenter) + vVec[0] * (j - imageCenter)
-                                + viewVec[0] * k + volumeCenter[0];
-                        p[1] = uVec[1] * (i - imageCenter) + vVec[1] * (j - imageCenter)
-                                + viewVec[1] * k + volumeCenter[1];
-                        p[2] = uVec[2] * (i - imageCenter) + vVec[2] * (j - imageCenter)
-                                + viewVec[2] * k + volumeCenter[2];
-                        short newVal = interVoxel(p);
-
-                        if (newVal > val) {
-                            val = newVal;
-                        }
-                    }
-                    voxelColor.r = (double) val/max;
-                    voxelColor.g = voxelColor.r;
-                    voxelColor.b = voxelColor.r;
-                    voxelColor.a = val > 0 ? 1.0 : 0.0;
-
-                    setColor(i, j, voxelColor);
-                }
+            if (i == threadCount - 1) {
+                endH = height;
             }
+
+            Runnable worker = null;
+            switch(m) {
+                case SLICES:
+                    worker = new SliceWorker(startH, endH, max, volume, image, viewMatrix, interactiveMode);
+                    break;
+                case MIP:
+                    worker = new MIPWorker(startH, endH, max, volume, image, viewMatrix, interactiveMode);
+                    break;
+                case COMPOSITING:
+                    worker = new CompositeWorker(startH, endH, volume, image, tFunc, viewMatrix, interactiveMode);
+                    break;
+            }
+            if (worker != null)
+                executor.execute(worker);
+        }
+        executor.shutdown();
+        try {
+            executor.awaitTermination(2, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            System.out.println("Threads were interrupted..");
         }
     }
-
-    void composite(double[] viewMatrix) {
-        double[] viewVec = new double[3]; // Forward
-        double[] uVec = new double[3]; // Right
-        double[] vVec = new double[3]; // Up
-        VectorMath.setVector(viewVec, viewMatrix[2], viewMatrix[6], viewMatrix[10]);
-        VectorMath.setVector(uVec, viewMatrix[0], viewMatrix[4], viewMatrix[8]);
-        VectorMath.setVector(vVec, viewMatrix[1], viewMatrix[5], viewMatrix[9]);
-
-        int width = image.getWidth();
-        int height = image.getHeight();
-        int imageCenter = width/2;
-
-        //  Voxel color / location of point to interpolate
-        TFColor voxelColor;
-        double[] p = new double[3];
-
-        // Get the highest dimension of the volume
-        double maxRange = volume.getDiagonal();
-
-        double[] volumeCenter = new double[3];
-        VectorMath.setVector(volumeCenter, volume.getDimX() / 2, volume.getDimY() / 2, volume.getDimZ() / 2);
-        TFColor compColor;
-
-        for (int j = 0; j < height; j++) {
-            for (int i = 0; i < width; i++) {
-                compColor = new TFColor(0,0,0,1);
-                if(i%4 == 0 && j%4 == 0 || !interactiveMode) {
-                    for (double k = -maxRange/2; k < maxRange/2; k++) {
-                        p[0] = uVec[0] * (i - imageCenter) + vVec[0] * (j - imageCenter)
-                                + viewVec[0] * k + volumeCenter[0];
-                        p[1] = uVec[1] * (i - imageCenter) + vVec[1] * (j - imageCenter)
-                                + viewVec[1] * k + volumeCenter[1];
-                        p[2] = uVec[2] * (i - imageCenter) + vVec[2] * (j - imageCenter)
-                                + viewVec[2] * k + volumeCenter[2];
-                        short val = interVoxel(p);
-                        voxelColor = tFunc.getColor(val);
-                        compColor.r = voxelColor.r * voxelColor.a + (1.0 - voxelColor.a) * compColor.r;
-                        compColor.g = voxelColor.g * voxelColor.a + (1.0 - voxelColor.a) * compColor.g;
-                        compColor.b = voxelColor.b * voxelColor.a + (1.0 - voxelColor.a) * compColor.b;
-                    }
-
-                    setColor(i, j, compColor);
-                }
-            }
-        }
-    }
-
-    public void setColor(int x, int y, TFColor c) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-        if (interactiveMode) {
-            for (int m = -2; m < 2; m++) {
-                for (int n = -2; n < 2; n++) {
-                    if (x+n > 0 && x+n < width && y+m > 0 && y+m < height)
-                        image.setRGB(x + n,y + m, c.toARGB());
-                }
-            }
-        } else {
-            image.setRGB(x, y, c.toARGB());
-        }
-    }
-
 
     private void drawBoundingBox(GL2 gl) {
         gl.glPushAttrib(GL2.GL_CURRENT_BIT);
@@ -414,17 +265,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 
     private void render() {
         clear();
-        switch(method) {
-            case SLICES:
-                slicer(viewMatrix);
-                break;
-            case MIP:
-                mip(viewMatrix);
-                break;
-            case COMPOSITING:
-                composite(viewMatrix);
-                break;
-        }
+        compute(viewMatrix, method);
     }
 
     @Override

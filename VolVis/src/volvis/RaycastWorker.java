@@ -99,13 +99,15 @@ public abstract class RaycastWorker extends Thread {
 
     public TFColor phong(TFColor in, double[] p) {
         if (p[0] < 0 || p[1] < 0 || p[2] < 0 || p[0] > volume.getDimX() || p[1] > volume.getDimY() || p[2] > volume.getDimZ() ) { return in; }
-        double k_ambient = 0.4, k_diff = 0.7, k_spec = 0.2, alpha = 10;
+
+        double k_ambient = 0.3, k_diff = 0.7, k_spec = 0.8, alpha = 5;
         TFColor out = new TFColor(in.r, in.g, in.b, in.a);
 
-        double[] L = new double[]{-viewVec[0], -viewVec[1], -viewVec[2]}; // L = R, light comes from our view vec reversed
-        double[] R = new double[]{-viewVec[0], -viewVec[1], -viewVec[2]};
-        double[] N = new double[3];
+        double[] L = viewVec; // L = R, light comes from our view vec (reversed?)
+        double[] R = viewVec;
 
+        // Calculate normal of this point according to
+        double[] N = new double[3];
         VoxelGradient gradient = gradients.getGradient((int) Math.floor(p[0]), (int) Math.floor(p[1]), (int) Math.floor(p[2]));
 
         if (gradient.mag > 0.0 && in.a > 0.0) {
@@ -115,13 +117,13 @@ public abstract class RaycastWorker extends Thread {
             N[2] = gradient.z / gradient.mag;
 
             // Computing required dot products
-            double l_dot_n = VectorMath.dotproduct(L, N);
-            double n_dot_r = VectorMath.dotproduct(N, R);
+            double ln = Math.abs(VectorMath.dotproduct(L, N));
+            double nr = Math.abs(VectorMath.dotproduct(N, R));
 
-            if (l_dot_n > 0 && n_dot_r > 0) {
-                out.r = k_ambient * in.r + (in.r * k_diff * l_dot_n) + in.r * k_spec * Math.pow(n_dot_r, alpha);
-                out.g = k_ambient * in.g  + (in.g * k_diff * l_dot_n) + in.g * k_spec * Math.pow(n_dot_r, alpha);
-                out.b = k_ambient * in.b  + (in.b * k_diff * l_dot_n) + in.b * k_spec * Math.pow(n_dot_r, alpha);
+            if (ln > 0 && nr > 0) {
+                out.r = in.r * (k_ambient + (k_diff * ln) + (k_spec * Math.pow(nr, alpha)));
+                out.g = in.g * (k_ambient + (k_diff * ln) + (k_spec * Math.pow(nr, alpha)));
+                out.b = in.b * (k_ambient + (k_diff * ln) + (k_spec * Math.pow(nr, alpha)));
             }
         }
 

@@ -29,6 +29,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     private TransferFunction2DEditor tfEditor2D;
     private ExecutorService executor;
     private int threadCount = 16;
+    private boolean illuminate = false;
 
     private int max;
     private BufferedImage image;
@@ -40,7 +41,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     private RENDER_METHOD method;
 
     public RaycastRenderer() {
-        method = RENDER_METHOD.MIP;
+        method = RENDER_METHOD.SLICES;
         panel = new RaycastRendererPanel(this);
         panel.setSpeedLabel("0");
     }
@@ -53,6 +54,12 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 
     public void setRenderMethod(RENDER_METHOD method) {
         this.method = method;
+        changed();
+    }
+
+    public void toggleIlluminate() {
+        illuminate = !illuminate;
+        changed();
     }
 
     public void setVolume(Volume vol) {
@@ -112,6 +119,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     }
 
     void compute(double[] viewMatrix, RENDER_METHOD m) {
+        System.out.println("Render render: " + m + " / " + illuminate);
         int height = image.getHeight();
         int hDelta = height/16;
 
@@ -131,17 +139,16 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                     worker = new SliceWorker(startH, endH, max, volume, gradients, image, viewMatrix, interactiveMode);
                     break;
                 case MIP:
-                    worker = new MIPWorker(startH, endH, max, volume, gradients, image, viewMatrix, interactiveMode);
+                    worker = new MIPWorker(startH, endH, max, volume, gradients, image, viewMatrix, interactiveMode, illuminate);
                     break;
                 case COMPOSITING:
-                    worker = new CompositeWorker(startH, endH, volume, gradients, image, tFunc, viewMatrix, interactiveMode);
+                    worker = new CompositeWorker(startH, endH, volume, gradients, image, tFunc, viewMatrix, interactiveMode, illuminate);
                     break;
                 case TF2D:
-                    worker = new GradientWorker(startH, endH, volume, gradients, tfEditor2D, image, viewMatrix, interactiveMode);
+                    worker = new GradientWorker(startH, endH, volume, gradients, tfEditor2D, image, viewMatrix, interactiveMode, illuminate);
                     break;
             }
-            if (worker != null)
-                executor.execute(worker);
+            executor.execute(worker);
         }
         executor.shutdown();
         try {

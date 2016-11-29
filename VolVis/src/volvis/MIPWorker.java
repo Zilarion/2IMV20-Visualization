@@ -13,8 +13,8 @@ import java.util.Vector;
 public class MIPWorker extends RaycastWorker {
     int max;
 
-    public MIPWorker(int startH, int endH, int volumeMax, Volume volume, GradientVolume gradients, BufferedImage target, double[] viewMatrix, boolean interactive) {
-        super(startH, endH, volume, gradients, target, viewMatrix, interactive);
+    public MIPWorker(int startH, int endH, int volumeMax, Volume volume, GradientVolume gradients, BufferedImage target, double[] viewMatrix, boolean interactive, boolean illuminate) {
+        super(startH, endH, volume, gradients, target, viewMatrix, interactive, illuminate);
         max = volumeMax;
     }
 

@@ -11,8 +11,8 @@ import java.awt.image.BufferedImage;
 public class CompositeWorker extends RaycastWorker {
     TransferFunction tFunc;
 
-    public CompositeWorker(int startH, int endH, Volume volume, GradientVolume gradients, BufferedImage target, TransferFunction tFunc, double[] viewMatrix, boolean interactive) {
-        super(startH, endH, volume, gradients, target, viewMatrix, interactive);
+    public CompositeWorker(int startH, int endH, Volume volume, GradientVolume gradients, BufferedImage target, TransferFunction tFunc, double[] viewMatrix, boolean interactive, boolean illuminate) {
+        super(startH, endH, volume, gradients, target, viewMatrix, interactive, illuminate);
         this.tFunc = tFunc;
     }
 

@@ -14,8 +14,8 @@ public class GradientWorker extends RaycastWorker {
     GradientVolume gradients;
     TransferFunction2DEditor tf2d;
 
-    public GradientWorker(int startH, int endH, Volume volume, GradientVolume gradients, TransferFunction2DEditor tf2d, BufferedImage target, double[] viewMatrix, boolean interactive) {
-        super(startH, endH, volume, gradients, target, viewMatrix, interactive);
+    public GradientWorker(int startH, int endH, Volume volume, GradientVolume gradients, TransferFunction2DEditor tf2d, BufferedImage target, double[] viewMatrix, boolean interactive, boolean illuminate) {
+        super(startH, endH, volume, gradients, target, viewMatrix, interactive, illuminate);
         this.gradients = gradients;
         this.tf2d = tf2d;
     }
@@ -23,7 +23,7 @@ public class GradientWorker extends RaycastWorker {
 
     @Override
     public void run() {
-        TFColor compColor, voxelColor = new TFColor();
+        TFColor compColor, voxelColor;
         double[] p = new double[3];
         double intensity =  tf2d.triangleWidget.baseIntensity;
         double radius =  tf2d.triangleWidget.radius;

@@ -53,18 +53,16 @@ public class GradientVolume {
             data[i] = zero;
         }
 
-        // For each pixelCoordinate in the volume calculate the gx, gy and gz
+        // Calculate gradient gx,gy,gz
         for (int i=1; i<volume.getDimX()-1;i++) {
             for (int j=1; j<volume.getDimY()-1;j++) {
                 for (int k=1; k<volume.getDimZ()-1;k++) {
-                    float gv_1 = ((volume.getVoxel(i+1, j, k) - volume.getVoxel(i-1, j, k)) / 2.0f);
-                    float gv_2 = ((volume.getVoxel(i, j+1, k) - volume.getVoxel(i, j-1, k)) / 2.0f);
-                    float gv_3 = ((volume.getVoxel(i, j, k+1) - volume.getVoxel(i, j, k-1)) / 2.0f);
+                    float gx = ((volume.getVoxel(i+1, j, k) - volume.getVoxel(i-1, j, k)) / 2.0f);
+                    float gy = ((volume.getVoxel(i, j+1, k) - volume.getVoxel(i, j-1, k)) / 2.0f);
+                    float gz = ((volume.getVoxel(i, j, k+1) - volume.getVoxel(i, j, k-1)) / 2.0f);
 
-                    // get the value of the VoxelGradient based on the calculated gx, gy and gz
-                    VoxelGradient value = new VoxelGradient(gv_1,gv_2,gv_3);
+                    VoxelGradient value = new VoxelGradient(gx,gy,gz);
 
-                    // set the VoxelGradient
                     this.setGradient(i, j, k, value);
                 }
             }

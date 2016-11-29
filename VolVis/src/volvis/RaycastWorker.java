@@ -23,12 +23,14 @@ public abstract class RaycastWorker extends Thread {
     BufferedImage image;
     Volume volume;
     GradientVolume gradients;
+    boolean illuminate;
 
-    public RaycastWorker(int startH, int endH, Volume volume, GradientVolume gradients, BufferedImage target, double[] viewMatrix, boolean interactive) {
+    public RaycastWorker(int startH, int endH, Volume volume, GradientVolume gradients, BufferedImage target, double[] viewMatrix, boolean interactive, boolean illuminate) {
         image = target;
         this.interactive= interactive;
         this.volume = volume;
         this.gradients = gradients;
+        this.illuminate = illuminate;
 
         imageCenter = image.getWidth()/2;
 
@@ -98,36 +100,48 @@ public abstract class RaycastWorker extends Thread {
 
 
     public TFColor phong(TFColor in, double[] p) {
-        if (p[0] < 0 || p[1] < 0 || p[2] < 0 || p[0] > volume.getDimX() || p[1] > volume.getDimY() || p[2] > volume.getDimZ() ) { return in; }
-
-        double k_ambient = 0.1, k_diff = 0.7, k_spec = 0.2, alpha = 10;
-        TFColor out = new TFColor(in.r, in.g, in.b, in.a);
-
-        double[] L = viewVec; // L = R, light comes from our view vec (reversed?)
-        double[] R = viewVec;
-
-        // Calculate normal of this point according to
-        double[] N = new double[3];
-        VoxelGradient gradient = gradients.getGradient((int) Math.floor(p[0]), (int) Math.floor(p[1]), (int) Math.floor(p[2]));
-
-        if (gradient.mag > 0.0 && in.a > 0.0) {
-            // Filling N-Vector:
-            N[0] = gradient.x / gradient.mag;
-            N[1] = gradient.y / gradient.mag;
-            N[2] = gradient.z / gradient.mag;
-
-            // Computing required dot products
-            double ln = Math.abs(VectorMath.dotproduct(L, N));
-            double nr = Math.abs(VectorMath.dotproduct(N, R));
-
-            if (ln > 0 && nr > 0) {
-                out.r = in.r * (k_ambient + (k_diff * ln) + (k_spec * Math.pow(nr, alpha)));
-                out.g = in.g * (k_ambient + (k_diff * ln) + (k_spec * Math.pow(nr, alpha)));
-                out.b = in.b * (k_ambient + (k_diff * ln) + (k_spec * Math.pow(nr, alpha)));
-                out.a = in.a * (k_ambient + (k_diff * ln) + (k_spec * Math.pow(nr, alpha)));
+        if (illuminate) {
+            if (p[0] < 0 || p[1] < 0 || p[2] < 0 || p[0] > volume.getDimX() || p[1] > volume.getDimY() || p[2] > volume.getDimZ()) {
+                return in;
             }
-        }
 
-        return out;
+            double i_ambient = 0.2, k_diff = 0.7, k_spec = 0.2, alpha = 10.0;
+            TFColor out = new TFColor(in.r, in.g, in.b, in.a);
+
+            //Calculate normal according to gradients
+            double[] N = new double[3];
+            VoxelGradient gradient = gradients.getGradient((int) Math.floor(p[0]), (int) Math.floor(p[1]), (int) Math.floor(p[2]));
+
+            if (gradient.mag > 0.0 && in.a > 0.0) {
+                // Calculate the center point of our view (where the light source and eye is)
+//                double[] centerP = new double[3];
+//                centerP[0] = uVec[0] * imageCenter + vVec[0] * imageCenter;
+//                centerP[1] = uVec[1] * imageCenter + vVec[1] * imageCenter;
+//                centerP[2] = uVec[2] * imageCenter + vVec[2] * imageCenter;
+//                double[] L = new double[]{centerP[0] - p[0], centerP[1] - p[1], centerP[2] - p[2]};
+
+                // Set L (= V) = H to be the vector pointing from the point to our 'eye'/light source
+                double[] L = new double[]{-viewVec[0], -viewVec[1], -viewVec[2]};
+                double[] H = L;
+
+                // Calculate normal vector N
+                N[0] = (double) gradient.x / (double) gradient.mag;
+                N[1] = (double) gradient.y / (double) gradient.mag;
+                N[2] = (double) gradient.z / (double) gradient.mag;
+
+                // Compute L dot N and N dot H
+                double ln = VectorMath.dotproduct(L, N);
+                double nh = VectorMath.dotproduct(N, H);
+
+                if (ln > 0 && nh > 0) {
+                    out.r = i_ambient + in.r * (k_diff * ln) + k_spec * Math.pow(nh, alpha);
+                    out.g = i_ambient + in.g * (k_diff * ln) + k_spec * Math.pow(nh, alpha);
+                    out.b = i_ambient + in.b * (k_diff * ln) + k_spec * Math.pow(nh, alpha);
+                }
+            }
+            return out;
+        } else {
+            return in;
+        }
     }
 }

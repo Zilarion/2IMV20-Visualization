@@ -12,7 +12,7 @@ public class SliceWorker extends RaycastWorker {
     int max;
 
     public SliceWorker(int startH, int endH, int volumeMax, Volume volume, GradientVolume gradients, BufferedImage target, double[] viewMatrix, boolean interactive) {
-        super(startH, endH, volume, gradients, target, viewMatrix, interactive);
+        super(startH, endH, volume, gradients, target, viewMatrix, interactive, false);
         max = volumeMax;
     }
 

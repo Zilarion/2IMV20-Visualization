@@ -44,13 +44,12 @@ public class GradientWorker extends RaycastWorker {
                         p[2] = uVec[2] * (i - imageCenter) + vVec[2] * (j - imageCenter)
                                 + viewVec[2] * k + volumeCenter[2];
 
-                        if (p[0] > volume.getDimX() || p[0] < 0 || p[1] > volume.getDimY() || p[1] < 0 || p[2] > volume.getDimZ() || p[2] < 0) {
+                        if (p[0] >= volume.getDimX() || p[0] < 0 || p[1] >= volume.getDimY() || p[1] < 0 || p[2] >= volume.getDimZ() || p[2] < 0) {
                             continue;
                         }
 
                         short val = interVoxel(p);
                         voxelColor = new TFColor(tfColor.r, tfColor.g, tfColor.b, tfColor.a);
-
                         VoxelGradient gradient = gradients.getGradient((int) Math.floor(p[0]), (int) Math.floor(p[1]), (int) Math.floor(p[2]));
 
                         // Calculate isovalue contour surfaces according to Levoy

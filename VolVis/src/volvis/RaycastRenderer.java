@@ -119,7 +119,6 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     }
 
     void compute(double[] viewMatrix, RENDER_METHOD m) {
-        System.out.println("Render render: " + m + " / " + illuminate);
         int height = image.getHeight();
         int hDelta = height/16;
 

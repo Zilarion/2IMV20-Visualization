@@ -80,6 +80,10 @@ public class TransferFunction2DView extends javax.swing.JPanel {
         g2.drawLine(xpos, ypos, xpos + (int) (ed.triangleWidget.radius * binWidth * ed.maxGradientMagnitude), 0);
         radiusControlPoint = new Ellipse2D.Double(xpos + (ed.triangleWidget.radius * binWidth * ed.maxGradientMagnitude) - DOTSIZE / 2,  0, DOTSIZE, DOTSIZE);
         g2.fill(radiusControlPoint);
+        
+        
+        g2.drawLine(0, (int) (h - ed.triangleWidget.minGradient/ed.maxGradientMagnitude * h), w, (int) (h - ed.triangleWidget.minGradient/ed.maxGradientMagnitude * h));
+        g2.drawLine(0, (int) (h - ed.triangleWidget.maxGradient/ed.maxGradientMagnitude * h), w, (int) (h - ed.triangleWidget.maxGradient/ed.maxGradientMagnitude * h));
     }
     
     

@@ -101,7 +101,7 @@ public abstract class RaycastWorker extends Thread {
 
     public TFColor phong(TFColor in, double[] p) {
         if (illuminate) {
-            if (p[0] < 0 || p[1] < 0 || p[2] < 0 || p[0] > volume.getDimX() || p[1] > volume.getDimY() || p[2] > volume.getDimZ()) {
+            if (p[0] < 0 || p[1] < 0 || p[2] < 0 || p[0] >= volume.getDimX() || p[1] >= volume.getDimY() || p[2] >= volume.getDimZ()) {
                 return in;
             }
 
